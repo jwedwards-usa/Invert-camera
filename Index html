@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Capture with Live Transformation</title>
+  <style>
+    video, canvas, img {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 10px;
+    }
+    select, button {
+      margin: 10px 0;
+    }
+    /* Apply a live horizontal flip (mirror effect) to the video stream */
+    #video {
+      transform: scaleX(-1); /* Flipping the video horizontally */
+      -webkit-transform: scaleX(-1); /* For Safari */
+      transform-origin: center; /* Ensure it flips around the center */
+    }
+  </style>
+</head>
+<body>
+  <h2>Capture Image from Camera with Live Flip</h2>
+  <select id="cameraSelect"></select>
+  <video id="video" autoplay playsinline></video>
+  <button id="captureBtn">Capture Image</button>
+  <button id="saveBtn" disabled>Save to Phone</button>
+  <br>
+  <canvas id="canvas" style="display: none;"></canvas>
+  <img id="imagePreview" style="display: none;" />
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const captureBtn = document.getElementById('captureBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const imagePreview = document.getElementById('imagePreview');
+    const context = canvas.getContext('2d');
+    let currentStream;
+
+    // Stop any active camera stream
+    function stopCamera() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    // Start the selected camera
+    function startCamera(deviceId) {
+      stopCamera();  // Stop any previously running stream
+
+      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+        .then(stream => {
+          currentStream = stream;
+          video.srcObject = stream;
+        })
+        .catch(error => {
+          console.error("Camera access error: ", error);
+        });
+    }
+
+    // Get available video input devices (cameras)
+    navigator.mediaDevices.enumerateDevices()
+      .then(devices => {
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        videoDevices.forEach((device, index) => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.text = device.label || `Camera ${index + 1}`;
+          cameraSelect.appendChild(option);
+        });
+
+        // Automatically start the first camera if available
+        if (videoDevices.length > 0) {
+          startCamera(videoDevices[0].deviceId);
+        }
+      })
+      .catch(function(error) {
+        console.error("Error enumerating devices: ", error);
+      });
+
+    // When camera selection changes, start the new camera
+    cameraSelect.addEventListener('change', () => {
+      const selectedDeviceId = cameraSelect.value;
+      startCamera(selectedDeviceId);
+    });
+
+    // Capture image from video stream
+    captureBtn.addEventListener('click', () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Capture the transformed (flipped) video frame
+      context.translate(canvas.width, 0);
+      context.scale(-1, 1); // Flip the image horizontally
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Show the preview of the captured image
+      const imageData = canvas.toDataURL();
+      imagePreview.src = imageData;
+      imagePreview.style.display = 'block';
+
+      // Enable the save button
+      saveBtn.disabled = false;
+    });
+
+    // Save image to phone
+    saveBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'captured_image.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  </script>
+</body>
+</html>
