@@ -1,157 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Camera Capture with Live Transformation</title>
-        <style>
-            video, canvas, img {
+      <style>
+            video,
+            canvas,
+            img {
                   width: 100%;
-                        max-width: 500px;
-                              margin-bottom: 10px;
-                                  }
-                                      select, button {
-                                            margin: 10px 0;
-                                                }
-                                                    /* Apply a live horizontal flip (mirror effect) to the video stream */
-                                                        #video {
-                                                              transform: scaleX(-1); /* Flipping the video horizontally */
-                                                                    -webkit-transform: scaleX(-1); /* For Safari */
-                                                                          transform-origin: center; /* Ensure it flips around the center */
-                                                                              }
-                                                                                </style>
-                                                                                </head>
-                                                                                <body>
-                                                                                  <h2>Capture Image from Camera with Live Flip</h2>
-                                                                                    <select id="cameraSelect"></select>
-                                                                                      <video id="video" autoplay playsinline></video>
-                                                                                        <button id="captureBtn">Capture Image</button>
-                                                                                          <button id="saveBtn" disabled>Save to Phone</button>
-                                                                                            <br>
-                                                                                              <canvas id="canvas" style="display: none;"></canvas>
-                                                                                                <img id="imagePreview" style="display: none;" />
+                  max-width: 500px;
+                  margin-bottom: 10px;
+            }
 
-                                                                                                  <script>
-                                                                                                      const video = document.getElementById('video');
-                                                                                                          const canvas = document.getElementById('canvas');
-                                                                                                              const captureBtn = document.getElementById('captureBtn');
-                                                                                                                  const saveBtn = document.getElementById('saveBtn');
-                                                                                                                      const cameraSelect = document.getElementById('cameraSelect');
-                                                                                                                          const imagePreview = document.getElementById('imagePreview');
-                                                                                                                              const context = canvas.getContext('2d');
-                                                                                                                                  let currentStream;
+            select,
+            button {
+                  margin: 10px 0;
+            }
 
-                                                                                                                                      // Stop any active camera stream
-                                                                                                                                          function stopCamera() {
-                                                                                                                                                if (currentStream) {
-                                                                                                                                                        currentStream.getTracks().forEach(track => track.stop());
-                                                                                                                                                              }
-                                                                                                                                                                  }
+            /* Apply a live horizontal flip (mirror effect) to the video stream */
+            #video {
+                  transform: scaleX(-1);
+                  /* Flipping the video horizontally */
+                  -webkit-transform: scaleX(-1);
+                  /* For Safari */
+                  transform-origin: center;
+                  /* Ensure it flips around the center */
+            }
+      </style>
+</head>
 
-                                                                                                                                                                      // Start the selected camera
-                                                                                                                                                                          function startCamera(deviceId) {
-                                                                                                                                                                                stopCamera();  // Stop any previously running stream
+<body>
+      <h2>Capture Image from Camera with Live Flip</h2>
+      <select id="cameraSelect"></select>
+      <video id="video" autoplay playsinline></video>
+      <button id="captureBtn">Capture Image</button>
+      <button id="saveBtn" disabled>Save to Phone</button>
+      <br>
+      <canvas id="canvas" style="display: none;"></canvas>
+      <img id="imagePreview" style="display: none;" />
 
-                                                                                                                                                                                      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
-                                                                                                                                                                                              .then(stream => {
-                                                                                                                                                                                                        currentStream = stream;
-                                                                                                                                                                                                                  video.srcObject = stream;
-                                                                                                                                                                                                                          })
-                                                                                                                                                                                                                                  .catch(error => {
-                                                                                                                                                                                                                                            console.error("Camera access error: ", error);
-                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                        }
+      <script>
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const captureBtn = document.getElementById('captureBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const cameraSelect = document.getElementById('cameraSelect');
+            const imagePreview = document.getElementById('imagePreview');
+            const context = canvas.getContext('2d');
+            let currentStream;
 
-                                                                                                                                                                                                                                                            // Get available video input devices (cameras)
-                                                                                                                                                                                                                                                                navigator.mediaDevices.enumerateDevices()
-                                                                                                                                                                                                                                                                      .then(devices => {
-                                                                                                                                                                                                                                                                              const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                                                                                                                                                                                                                                                                                      videoDevices.forEach((device, index) => {
-                                                                                                                                                                                                                                                                                                const option = document.createElement('option');
-                                                                                                                                                                                                                                                                                                          option.value = device.deviceId;
-                                                                                                                                                                                                                                                                                                                    option.text = device.label || `Camera ${index + 1}`;
-                                                                                                                                                                                                                                                                                                                              cameraSelect.appendChild(option);
-                                                                                                                                                                                                                                                                                                                                      });
+            // Stop any active camera stream
+            function stopCamera() {
+                  if (currentStream) {
+                        currentStream.getTracks().forEach(track => track.stop());
+                  }
+            }
 
-                                                                                                                                                                                                                                                                                                                                              // Automatically start the first camera if available
-                                                                                                                                                                                                                                                                                                                                                      if (videoDevices.length > 0) {
-                                                                                                                                                                                                                                                                                                                                                                startCamera(videoDevices[0].deviceId);
-                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                              })
-                                                                                                                                                                                                                                                                                                                                                                                    .catch(function(error) {
-                                                                                                                                                                                                                                                                                                                                                                                            console.error("Error enumerating devices: ", error);
-                                                                                                                                                                                                                                                                                                                                                                                                  });
+            // Start the selected camera
+            function startCamera(deviceId) {
+                  stopCamera();  // Stop any previously running stream
 
-                                                                                                                                                                                                                                                                                                                                                                                                      // Get current date-time for the filename
-                                                                                                                                                                                                                                                                                                                                                                                                          function getDateTimeStamp() {
-                                                                                                                                                                                                                                                                                                                                                                                                                const now = new Date();
-                                                                                                                                                                                                                                                                                                                                                                                                                      const year = now.getFullYear();
-                                                                                                                                                                                                                                                                                                                                                                                                                            const month = String(now.getMonth() + 1).padStart(2, '0');
-                                                                                                                                                                                                                                                                                                                                                                                                                                  const day = String(now.getDate()).padStart(2, '0');
-                                                                                                                                                                                                                                                                                                                                                                                                                                        const hours = String(now.getHours()).padStart(2, '0');
-                                                                                                                                                                                                                                                                                                                                                                                                                                              const minutes = String(now.getMinutes()).padStart(2, '0');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                    const seconds = String(now.getSeconds()).padStart(2, '0');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                          return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                              }
+                  navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+                        .then(stream => {
+                              currentStream = stream;
+                              video.srcObject = stream;
+                        })
+                        .catch(error => {
+                              console.error("Camera access error: ", error);
+                        });
+            }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                  // Adjust the image based on the current device orientation
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                      function handleOrientation(width, height) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                            const orientation = window.screen.orientation.angle;
+            // Get available video input devices (cameras)
+            navigator.mediaDevices.enumerateDevices()
+                  .then(devices => {
+                        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                        videoDevices.forEach((device, index) => {
+                              const option = document.createElement('option');
+                              option.value = device.deviceId;
+                              option.text = device.label || `Camera ${index + 1}`;
+                              cameraSelect.appendChild(option);
+                        });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  // Clear the canvas before drawing
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        context.clearRect(0, 0, width, height);
+                        // Automatically start the first camera if available
+                        if (videoDevices.length > 0) {
+                              startCamera(videoDevices[0].deviceId);
+                        }
+                  })
+                  .catch(function (error) {
+                        console.error("Error enumerating devices: ", error);
+                  });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              if (orientation === 90) { // Landscape mode, rotated 90 degrees clockwise
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      canvas.width = height;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              canvas.height = width;
+            // Get current date-time for the filename
+            function getDateTimeStamp() {
+                  const now = new Date();
+                  const year = now.getFullYear();
+                  const month = String(now.getMonth() + 1).padStart(2, '0');
+                  const day = String(now.getDate()).padStart(2, '0');
+                  const hours = String(now.getHours()).padStart(2, '0');
+                  const minutes = String(now.getMinutes()).padStart(2, '0');
+                  const seconds = String(now.getSeconds()).padStart(2, '0');
+                  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+            }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      context.translate(canvas.width, 0);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              context.rotate(Math.PI / 2);  // Rotate 90 degrees clockwise
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      context.scale(-1, 1);  // Mirror the image
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              context.drawImage(video, 0, -canvas.height, canvas.height, canvas.width);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    } else if (orientation === -90) { // Landscape mode, rotated 90 degrees counterclockwise
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            canvas.width = height;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    canvas.height = width;
+            // Adjust the image based on the current device orientation
+            function handleOrientation(width, height) {
+                  const orientation = window.screen.orientation.angle;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            context.translate(0, canvas.height);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    context.rotate(-Math.PI / 2);  // Rotate 90 degrees counterclockwise
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            context.scale(-1, 1);  // Mirror the image
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    context.drawImage(video, -canvas.width, 0, canvas.height, canvas.width);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          } else {  // Portrait or default
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  canvas.width = width;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          canvas.height = height;
+                  // Clear the canvas before drawing
+                  context.clearRect(0, 0, width, height);
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  context.translate(canvas.width, 0);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          context.scale(-1, 1);  // Mirror the image
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
+                  if (orientation === 90) { // Landscape mode, rotated 90 degrees clockwise
+                        canvas.width = height;
+                        canvas.height = width;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                // Capture image from video stream
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    captureBtn.addEventListener('click', () => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          const width = video.videoWidth;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                const height = video.videoHeight;
+                        context.translate(canvas.width, 0);
+                        context.rotate(Math.PI / 2);  // Rotate 90 degrees clockwise
+                        context.scale(-1, 1);  // Mirror the image
+                        context.drawImage(video, 0, -canvas.height, canvas.height, canvas.width);
+                  } else if (orientation === -90) { // Landscape mode, rotated 90 degrees counterclockwise
+                        canvas.width = height;
+                        canvas.height = width;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      handleOrientation(width, height);
+                        context.translate(0, canvas.height);
+                        context.rotate(-Math.PI / 2);  // Rotate 90 degrees counterclockwise
+                        context.scale(-1, 1);  // Mirror the image
+                        context.drawImage(video, -canvas.width, 0, canvas.height, canvas.width);
+                  } else {  // Portrait or default
+                        canvas.width = width;
+                        canvas.height = height;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            // Show the preview of the captured image
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  const imageData = canvas.toDataURL();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        imagePreview.src = imageData;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              imagePreview.style.display = 'block';
+                        context.translate(canvas.width, 0);
+                        context.scale(-1, 1);  // Mirror the image
+                        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                  }
+            }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    // Enable the save button
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          saveBtn.disabled = false;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              });
+            // Capture image from video stream
+            captureBtn.addEventListener('click', () => {
+                  const width = video.videoWidth;
+                  const height = video.videoHeight;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  // Save image to phone
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      saveBtn.addEventListener('click', () => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            const link = document.createElement('a');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  const dateTimeStamp = getDateTimeStamp();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        link.download = `captured_image_${dateTimeStamp}.png`;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              link.href = canvas.toDataURL();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    link.click();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        });
+                  handleOrientation(width, height);
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          </script>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          </body>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          </html>
+                  // Show the preview of the captured image
+                  const imageData = canvas.toDataURL();
+                  imagePreview.src = imageData;
+                  imagePreview.style.display = 'block';
+
+                  // Enable the save button
+                  saveBtn.disabled = false;
+            });
+
+            // Save image to phone
+            saveBtn.addEventListener('click', () => {
+                  const link = document.createElement('a');
+                  const dateTimeStamp = getDateTimeStamp();
+                  link.download = `captured_image_${dateTimeStamp}.png`;
+                  link.href = canvas.toDataURL();
+                  link.click();
+            });
+
+      </script>
+</body>
+
+</html>
