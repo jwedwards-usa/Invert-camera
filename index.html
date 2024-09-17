@@ -19,6 +19,13 @@
       -webkit-transform: scaleX(-1); /* For Safari */
       transform-origin: center; /* Ensure it flips around the center */
     }
+    /* Add upside-down transform for landscape mode */
+    @media (orientation: landscape) {
+      #video {
+        transform: scaleX(-1) rotate(180deg);
+        -webkit-transform: scaleX(-1) rotate(180deg);
+      }
+    }
   </style>
 </head>
 <body>
@@ -52,13 +59,22 @@
     function startCamera(deviceId) {
       stopCamera();  // Stop any previously running stream
 
-      navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+      const constraints = {
+        video: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          facingMode: "user"  // Prefer front camera if available
+        }
+      };
+
+      navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
           currentStream = stream;
           video.srcObject = stream;
+          video.play();  // Ensure video starts playing
         })
         .catch(error => {
           console.error("Camera access error: ", error);
+          alert("Failed to access the camera. Please ensure you've granted camera permissions.");
         });
     }
 
@@ -76,10 +92,13 @@
         // Automatically start the first camera if available
         if (videoDevices.length > 0) {
           startCamera(videoDevices[0].deviceId);
+        } else {
+          alert("No cameras found. Please ensure your device has a camera and it's not in use by another application.");
         }
       })
       .catch(function(error) {
         console.error("Error enumerating devices: ", error);
+        alert("Failed to detect cameras. Please ensure you're using a supported browser and have granted necessary permissions.");
       });
 
     // When camera selection changes, start the new camera
@@ -109,8 +128,10 @@
 
     // Save image to phone
     saveBtn.addEventListener('click', () => {
+      const now = new Date();
+      const filename = `captured_image_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}-${now.getSeconds().toString().padStart(2, '0')}.png`;
       const link = document.createElement('a');
-      link.download = 'captured_image.png';
+      link.download = filename;
       link.href = canvas.toDataURL();
       link.click();
     });
