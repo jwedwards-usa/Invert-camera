@@ -1,125 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-
-
-      
-  <meta charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Camera Capture with Live Transformation</title>
-        <style>
-            /* ... (keep the existing styles) ... */
-              </style>
-              </head>
-              <body>
-                <!-- ... (keep the existing HTML structure) ... -->
-                  
-                    <script>
-                        const video = document.getElementById('video');
-                            const canvas = document.getElementById('canvas');
-                                const captureBtn = document.getElementById('captureBtn');
-                                    const saveBtn = document.getElementById('saveBtn');
-                                        const cameraSelect = document.getElementById('cameraSelect');
-                                            const imagePreview = document.getElementById('imagePreview');
-                                                const context = canvas.getContext('2d');
-                                                    let currentStream;
+    <title>Camera Capture with Live Transformation</title>
+    <style>
+        /* Add any required styles here */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 20px;
+        }
 
-                                                        // Function to check if the browser supports the Media Devices API
-                                                            function hasGetUserMedia() {
-                                                                  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-                                                                      }
+        video,
+        canvas {
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #ccc;
+        }
+    </style>
+</head>
 
-                                                                          // Function to request camera access
-                                                                              async function requestCameraAccess() {
-                                                                                    try {
-                                                                                            await navigator.mediaDevices.getUserMedia({ video: true });
-                                                                                                    console.log("Camera access granted");
-                                                                                                          } catch (error) {
-                                                                                                                  console.error("Failed to request camera access:", error);
-                                                                                                                          alert("This website needs access to your camera. Please allow it.");
-                                                                                                                                }
-                                                                                                                                    }
+<body>
 
-                                                                                                                                        // Start the selected camera
-                                                                                                                                            function startCamera(deviceId) {
-                                                                                                                                                  stopCamera();  // Stop any previously running stream
+    <h1>Camera Capture with Live Transformation</h1>
 
-                                                                                                                                                        navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
-                                                                                                                                                                .then(stream => {
-                                                                                                                                                                          currentStream = stream;
-                                                                                                                                                                                    video.srcObject = stream;
-                                                                                                                                                                                            })
-                                                                                                                                                                                                    .catch(error => {
-                                                                                                                                                                                                              console.error("Camera access error: ", error);
-                                                                                                                                                                                                                        alert("Failed to access the camera. Please try again.");
-                                                                                                                                                                                                                                });
-                                                                                                                                                                                                                                    }
+    <div>
+        <label for="cameraSelect">Choose Camera:</label>
+        <select id="cameraSelect"></select>
+    </div>
 
-                                                                                                                                                                                                                                        // Get available video input devices (cameras)
-                                                                                                                                                                                                                                            function enumerateDevices() {
-                                                                                                                                                                                                                                                  return navigator.mediaDevices.enumerateDevices().catch(function(error) {
-                                                                                                                                                                                                                                                          console.error("Error enumerating devices: ", error);
-                                                                                                                                                                                                                                                                  throw error;
-                                                                                                                                                                                                                                                                        });
-                                                                                                                                                                                                                                                                            }
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
 
-                                                                                                                                                                                                                                                                                // Main initialization function
-                                                                                                                                                                                                                                                                                    async function init() {
-                                                                                                                                                                                                                                                                                          if (!hasGetUserMedia()) {
-                                                                                                                                                                                                                                                                                                  console.log("getUserMedia is not supported");
-                                                                                                                                                                                                                                                                                                          return;
-                                                                                                                                                                                                                                                                                                                }
+    <div>
+        <button id="captureBtn">Capture</button>
+        <button id="saveBtn">Save</button>
+    </div>
 
-                                                                                                                                                                                                                                                                                                                      await requestCameraAccess();
+    <img id="imagePreview" alt="Captured image will appear here" style="display:none;">
 
-                                                                                                                                                                                                                                                                                                                            try {
-                                                                                                                                                                                                                                                                                                                                    const devices = await enumerateDevices();
-                                                                                                                                                                                                                                                                                                                                            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                                                                                                                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                                                                                            videoDevices.forEach((device, index) => {
-                                                                                                                                                                                                                                                                                                                                                                      const option = document.createElement('option');
-                                                                                                                                                                                                                                                                                                                                                                                option.value = device.deviceId;
-                                                                                                                                                                                                                                                                                                                                                                                          option.text = device.label || `Camera ${index + 1}`;
-                                                                                                                                                                                                                                                                                                                                                                                                    cameraSelect.appendChild(option);
-                                                                                                                                                                                                                                                                                                                                                                                                            });
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const imagePreview = document.getElementById('imagePreview');
+        const context = canvas.getContext('2d');
+        let currentStream;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                    if (videoDevices.length > 0) {
-                                                                                                                                                                                                                                                                                                                                                                                                                              startCamera(videoDevices[0].deviceId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                      }
-                                                                                                                                                                                                                                                                                                                                                                                                                                            } catch (error) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                    console.error("Initialization failed:", error);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                            alert("An error occurred during initialization. Please try again later.");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                  }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                      }
+        // Function to check if the browser supports the Media Devices API
+        function hasGetUserMedia() {
+            return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+        }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                          // Event listeners
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                              cameraSelect.addEventListener('change', () => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    const selectedDeviceId = cameraSelect.value;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          startCamera(selectedDeviceId);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              });
+        // Function to request camera access
+        async function requestCameraAccess() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                console.log("Camera access granted");
+            } catch (error) {
+                console.error("Failed to request camera access:", error);
+                alert("This website needs access to your camera. Please allow it.");
+            }
+        }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  captureBtn.addEventListener('click', () => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        const width = video.videoWidth;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              const height = video.videoHeight;
+        // Start the selected camera
+        function startCamera(deviceId) {
+            stopCamera();  // Stop any previously running stream
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    handleOrientation(width, height);
+            navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } })
+                .then(stream => {
+                    currentStream = stream;
+                    video.srcObject = stream;
+                })
+                .catch(error => {
+                    console.error("Camera access error: ", error);
+                    alert("Failed to access the camera. Please try again.");
+                });
+        }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          const imageData = canvas.toDataURL();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                imagePreview.src = imageData;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      imagePreview.style.display = 'block';
+        // Stop any currently running camera stream
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+        }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            saveBtn.disabled = false;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                });
+        // Get available video input devices (cameras)
+        function enumerateDevices() {
+            return navigator.mediaDevices.enumerateDevices()
+                .catch(function (error) {
+                    console.error("Error enumerating devices: ", error);
+                    throw error;
+                });
+        }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    saveBtn.addEventListener('click', () => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          const link = document.createElement('a');
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                const dateTimeStamp = getDateTimeStamp();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      link.download = `captured_image_${dateTimeStamp}.png`;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            link.href = canvas.toDataURL();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  link.click();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      });
+        // Capture the current video frame and display it on the canvas
+        captureBtn.addEventListener('click', () => {
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            imagePreview.src = canvas.toDataURL('image/png');
+            imagePreview.style.display = 'block';
+        });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          window.onload = init;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </script>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </body>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </html>
+        // Initialize camera and device list
+        async function init() {
+            if (!hasGetUserMedia()) {
+                console.log("getUserMedia is not supported");
+                return;
+            }
+
+            await requestCameraAccess();
+
+            try {
+                const devices = await enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                if (videoDevices.length > 0) {
+                    startCamera(videoDevices[0].deviceId);
+                }
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                alert("An error occurred during initialization. Please try again later.");
+            }
+        }
+
+        // Event listener for camera selection change
+        cameraSelect.addEventListener('change', () => {
+            const selectedDeviceId = cameraSelect.value;
+            startCamera(selectedDeviceId);
+        });
+
+        // Initialize everything when the page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+
+</html>
