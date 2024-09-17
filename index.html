@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enhanced Camera Capture with Photo Upload</title>
+  <title>Enhanced Camera Capture with Photo Upload - No Flickering</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -142,22 +142,23 @@
       if (file) {
         const reader = new FileReader();
         reader.onload = function(event) {
-          uploadedImage.onload = function() {
-            canvas.width = uploadedImage.width;
-            canvas.height = uploadedImage.height;
+          const img = new Image();
+          img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
             
+            context.clearRect(0, 0, canvas.width, canvas.height);
             context.translate(canvas.width, 0);
             context.scale(-1, 1);
-            context.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
+            context.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            const imageData = canvas.toDataURL();
-            uploadedImage.src = imageData;
+            uploadedImage.src = canvas.toDataURL();
             uploadedImage.style.display = 'block';
             imagePreview.style.display = 'none';
 
             saveBtn.disabled = false;
           }
-          uploadedImage.src = event.target.result;
+          img.src = event.target.result;
         }
         reader.readAsDataURL(file);
       }
