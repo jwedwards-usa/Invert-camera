@@ -3,25 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Camera Capture with Live Transformation</title>
+  <title>Enhanced Camera Capture with Photo Upload</title>
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
     video, canvas, img {
       width: 100%;
       max-width: 500px;
       margin-bottom: 10px;
     }
-    select, button {
+    select, button, input[type="file"] {
       margin: 10px 0;
     }
-    /* Apply a live horizontal flip (mirror effect) to the video stream */
-    #video {
-      transform: scaleX(-1); /* Flipping the video horizontally */
-      -webkit-transform: scaleX(-1); /* For Safari */
-      transform-origin: center; /* Ensure it flips around the center */
+    /* Apply transformations to video and uploaded image */
+    #video, #uploadedImage {
+      transform: scaleX(-1);
+      -webkit-transform: scaleX(-1);
+      transform-origin: center;
     }
-    /* Add upside-down transform for landscape mode */
     @media (orientation: landscape) {
-      #video {
+      #video, #uploadedImage {
         transform: scaleX(-1) rotate(180deg);
         -webkit-transform: scaleX(-1) rotate(180deg);
       }
@@ -29,14 +34,17 @@
   </style>
 </head>
 <body>
-  <h2>Capture Image from Camera with Live Flip</h2>
+  <h2>Enhanced Camera Capture with Photo Upload</h2>
   <select id="cameraSelect"></select>
   <video id="video" autoplay playsinline></video>
   <button id="captureBtn">Capture Image</button>
-  <button id="saveBtn" disabled>Save to Phone</button>
+  <button id="saveBtn" disabled>Save to Device</button>
+  <br>
+  <input type="file" id="fileInput" accept="image/*">
   <br>
   <canvas id="canvas" style="display: none;"></canvas>
   <img id="imagePreview" style="display: none;" />
+  <img id="uploadedImage" style="display: none;" />
 
   <script>
     const video = document.getElementById('video');
@@ -45,24 +53,23 @@
     const saveBtn = document.getElementById('saveBtn');
     const cameraSelect = document.getElementById('cameraSelect');
     const imagePreview = document.getElementById('imagePreview');
+    const fileInput = document.getElementById('fileInput');
+    const uploadedImage = document.getElementById('uploadedImage');
     const context = canvas.getContext('2d');
     let currentStream;
 
-    // Stop any active camera stream
     function stopCamera() {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
       }
     }
 
-    // Start the selected camera
     function startCamera(deviceId) {
-      stopCamera();  // Stop any previously running stream
+      stopCamera();
 
       const constraints = {
         video: {
-          deviceId: deviceId ? { exact: deviceId } : undefined,
-          facingMode: "user"  // Prefer front camera if available
+          deviceId: deviceId ? { exact: deviceId } : undefined
         }
       };
 
@@ -70,7 +77,7 @@
         .then(stream => {
           currentStream = stream;
           video.srcObject = stream;
-          video.play();  // Ensure video starts playing
+          video.play();
         })
         .catch(error => {
           console.error("Camera access error: ", error);
@@ -78,7 +85,6 @@
         });
     }
 
-    // Get available video input devices (cameras)
     navigator.mediaDevices.enumerateDevices()
       .then(devices => {
         const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -89,9 +95,10 @@
           cameraSelect.appendChild(option);
         });
 
-        // Automatically start the first camera if available
         if (videoDevices.length > 0) {
-          startCamera(videoDevices[0].deviceId);
+          // Select the last camera by default
+          cameraSelect.value = videoDevices[videoDevices.length - 1].deviceId;
+          startCamera(cameraSelect.value);
         } else {
           alert("No cameras found. Please ensure your device has a camera and it's not in use by another application.");
         }
@@ -101,32 +108,26 @@
         alert("Failed to detect cameras. Please ensure you're using a supported browser and have granted necessary permissions.");
       });
 
-    // When camera selection changes, start the new camera
     cameraSelect.addEventListener('change', () => {
-      const selectedDeviceId = cameraSelect.value;
-      startCamera(selectedDeviceId);
+      startCamera(cameraSelect.value);
     });
 
-    // Capture image from video stream
     captureBtn.addEventListener('click', () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      // Capture the transformed (flipped) video frame
       context.translate(canvas.width, 0);
-      context.scale(-1, 1); // Flip the image horizontally
+      context.scale(-1, 1);
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Show the preview of the captured image
       const imageData = canvas.toDataURL();
       imagePreview.src = imageData;
       imagePreview.style.display = 'block';
+      uploadedImage.style.display = 'none';
 
-      // Enable the save button
       saveBtn.disabled = false;
     });
 
-    // Save image to phone
     saveBtn.addEventListener('click', () => {
       const now = new Date();
       const filename = `captured_image_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}-${now.getMinutes().toString().padStart(2, '0')}-${now.getSeconds().toString().padStart(2, '0')}.png`;
@@ -134,6 +135,32 @@
       link.download = filename;
       link.href = canvas.toDataURL();
       link.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          uploadedImage.onload = function() {
+            canvas.width = uploadedImage.width;
+            canvas.height = uploadedImage.height;
+            
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            context.drawImage(uploadedImage, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvas.toDataURL();
+            uploadedImage.src = imageData;
+            uploadedImage.style.display = 'block';
+            imagePreview.style.display = 'none';
+
+            saveBtn.disabled = false;
+          }
+          uploadedImage.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+      }
     });
   </script>
 </body>
