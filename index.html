@@ -27,14 +27,14 @@
     }
     @media (orientation: landscape) {
       #video, #uploadedImage {
-        transform: scaleX(-1) rotate(180deg);
-        -webkit-transform: scaleX(-1) rotate(180deg);
+        transform: scaleX(-1) scaleY(-1);
+        -webkit-transform: scaleX(-1) scaleY(-1);
       }
     }
   </style>
 </head>
 <body>
-  <h2>Enhanced Camera Capture with Photo Upload</h2>
+  <h2>Enhanced Camera Capture with Correct Orientation</h2>
   <select id="cameraSelect"></select>
   <video id="video" autoplay playsinline></video>
   <button id="captureBtn">Capture Image</button>
@@ -112,13 +112,23 @@
       startCamera(cameraSelect.value);
     });
 
+    function applyTransformations(ctx, width, height) {
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+      if (window.matchMedia("(orientation: landscape)").matches) {
+        ctx.translate(0, height);
+        ctx.scale(1, -1);
+      }
+    }
+
     captureBtn.addEventListener('click', () => {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
 
-      context.translate(canvas.width, 0);
-      context.scale(-1, 1);
+      context.save();
+      applyTransformations(context, canvas.width, canvas.height);
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      context.restore();
 
       const imageData = canvas.toDataURL();
       imagePreview.src = imageData;
@@ -148,9 +158,10 @@
             canvas.height = img.height;
             
             context.clearRect(0, 0, canvas.width, canvas.height);
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
+            context.save();
+            applyTransformations(context, canvas.width, canvas.height);
             context.drawImage(img, 0, 0, canvas.width, canvas.height);
+            context.restore();
 
             uploadedImage.src = canvas.toDataURL();
             uploadedImage.style.display = 'block';
