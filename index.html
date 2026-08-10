@@ -15,9 +15,12 @@
     .status { font-size: .8rem; color: #b7becb; text-align: right; }
     .stage { position: relative; overflow: hidden; border-radius: 18px; background: #11151d; min-height: 48dvh; display: grid; place-items: center; box-shadow: 0 10px 40px rgba(0,0,0,.35); }
     video, #preview { display: block; width: 100%; max-height: 68dvh; object-fit: contain; background: #000; }
-    video { transform: scaleX(-1); }
+    video { transform: scaleX(-1); transform-origin: center; touch-action: none; user-select: none; -webkit-user-select: none; }
     #preview[hidden], video[hidden] { display: none; }
-    .badge { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.62); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 6px 9px; font-size: .75rem; pointer-events: none; }
+    .badge { position: absolute; top: 10px; background: rgba(0,0,0,.62); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 6px 9px; font-size: .75rem; z-index: 4; }
+    #mirrorBadge { left: 10px; pointer-events: none; }
+    #zoomBadge { right: 10px; color: #fff; cursor: pointer; min-height: 30px; }
+    #zoomBadge[hidden] { display: none; }
     .controls { display: grid; gap: 10px; margin-top: 12px; }
     button, .file-label { width: 100%; min-height: 54px; border: 0; border-radius: 16px; padding: 12px 16px; font: inherit; font-weight: 750; cursor: pointer; }
     #capture { background: #f7f7f8; color: #090b10; font-size: 1.03rem; }
@@ -32,6 +35,25 @@
     input[type=file] { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
     .hint { margin: 10px 3px 0; color: #8e98a8; font-size: .8rem; line-height: 1.4; text-align: center; }
     canvas { display: none; }
+
+    #cropLayer { position: absolute; z-index: 5; touch-action: none; }
+    #cropLayer[hidden] { display: none; }
+    .crop-shade { position: absolute; inset: 0; background: rgba(0,0,0,.42); pointer-events: none; }
+    #cropBox { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.36); cursor: move; touch-action: none; }
+    #cropBox::before, #cropBox::after { content: ""; position: absolute; pointer-events: none; opacity: .75; }
+    #cropBox::before { left: 33.333%; top: 0; bottom: 0; width: 33.333%; border-left: 1px solid rgba(255,255,255,.55); border-right: 1px solid rgba(255,255,255,.55); }
+    #cropBox::after { top: 33.333%; left: 0; right: 0; height: 33.333%; border-top: 1px solid rgba(255,255,255,.55); border-bottom: 1px solid rgba(255,255,255,.55); }
+    .handle { position: absolute; width: 30px; height: 30px; z-index: 2; touch-action: none; }
+    .handle::after { content: ""; position: absolute; width: 13px; height: 13px; border-color: #fff; border-style: solid; }
+    .nw { left: -15px; top: -15px; cursor: nwse-resize; }
+    .nw::after { left: 8px; top: 8px; border-width: 3px 0 0 3px; }
+    .ne { right: -15px; top: -15px; cursor: nesw-resize; }
+    .ne::after { right: 8px; top: 8px; border-width: 3px 3px 0 0; }
+    .sw { left: -15px; bottom: -15px; cursor: nesw-resize; }
+    .sw::after { left: 8px; bottom: 8px; border-width: 0 0 3px 3px; }
+    .se { right: -15px; bottom: -15px; cursor: nwse-resize; }
+    .se::after { right: 8px; bottom: 8px; border-width: 0 3px 3px 0; }
+
     @media (max-width: 430px) { .row { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -42,17 +64,32 @@
       <div class="status" id="status">Starting camera…</div>
     </header>
 
-    <section class="stage" aria-live="polite">
+    <section class="stage" id="stage" aria-live="polite">
       <video id="video" autoplay playsinline muted></video>
       <img id="preview" alt="Corrected slide preview" hidden />
-      <div class="badge" id="badge">Mirror correction on</div>
+      <div class="badge" id="mirrorBadge">Mirror correction on</div>
+      <button class="badge" id="zoomBadge" type="button" aria-label="Reset zoom" hidden>1.0×</button>
+      <div id="cropLayer" hidden aria-label="Crop area">
+        <div class="crop-shade"></div>
+        <div id="cropBox">
+          <span class="handle nw" data-handle="nw"></span>
+          <span class="handle ne" data-handle="ne"></span>
+          <span class="handle sw" data-handle="sw"></span>
+          <span class="handle se" data-handle="se"></span>
+        </div>
+      </div>
     </section>
 
     <section class="controls">
       <button id="capture" type="button">Capture &amp; save slide</button>
-      <div class="row">
+      <div class="row" id="normalActions">
         <button id="cameraToggle" class="secondary" type="button">Switch camera</button>
         <button id="liveBtn" class="secondary" type="button" hidden>Back to live camera</button>
+      </div>
+      <button id="cropBtn" class="secondary" type="button" hidden>Crop last slide</button>
+      <div class="row" id="cropActions" hidden>
+        <button id="cancelCropBtn" class="secondary" type="button">Cancel crop</button>
+        <button id="applyCropBtn" type="button">Crop &amp; save copy</button>
       </div>
     </section>
 
@@ -65,11 +102,12 @@
       </div>
     </details>
 
-    <p class="hint">Made for photographing a rear-projected screen from backstage. The saved image is flipped left-to-right so slide text reads normally.</p>
+    <p class="hint" id="hint">Pinch the live camera to zoom. Tap the zoom number to reset. After saving, use Crop only when you need it.</p>
     <canvas id="canvas"></canvas>
   </main>
 
   <script>
+    const stage = document.getElementById('stage');
     const video = document.getElementById('video');
     const preview = document.getElementById('preview');
     const canvas = document.getElementById('canvas');
@@ -77,19 +115,45 @@
     const captureBtn = document.getElementById('capture');
     const cameraToggle = document.getElementById('cameraToggle');
     const liveBtn = document.getElementById('liveBtn');
+    const cropBtn = document.getElementById('cropBtn');
+    const cropActions = document.getElementById('cropActions');
+    const cancelCropBtn = document.getElementById('cancelCropBtn');
+    const applyCropBtn = document.getElementById('applyCropBtn');
+    const cropLayer = document.getElementById('cropLayer');
+    const cropBox = document.getElementById('cropBox');
     const cameraSelect = document.getElementById('cameraSelect');
     const fileInput = document.getElementById('fileInput');
     const statusEl = document.getElementById('status');
+    const zoomBadge = document.getElementById('zoomBadge');
 
     let stream = null;
     let devices = [];
     let activeDeviceId = '';
+    let lastImageDataUrl = '';
 
+    let zoomMode = 'digital';
+    let zoomValue = 1;
+    let zoomMin = 1;
+    let zoomMax = 4;
+    let zoomTrack = null;
+    let nativeZoomFrame = 0;
+    let pendingNativeZoom = 1;
+    const zoomPointers = new Map();
+    let pinchStartDistance = 0;
+    let pinchStartZoom = 1;
+
+    let crop = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+    let cropDrag = null;
+
+    function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
     function setStatus(message) { statusEl.textContent = message; }
 
     function stopCamera() {
       if (stream) stream.getTracks().forEach(track => track.stop());
       stream = null;
+      zoomTrack = null;
+      if (nativeZoomFrame) cancelAnimationFrame(nativeZoomFrame);
+      nativeZoomFrame = 0;
     }
 
     async function getVideoStream(deviceId = '') {
@@ -113,6 +177,106 @@
       cameraToggle.hidden = devices.length < 2;
     }
 
+    function setupZoom() {
+      zoomPointers.clear();
+      zoomTrack = stream?.getVideoTracks()[0] || null;
+      const capabilities = zoomTrack?.getCapabilities?.() || {};
+      const settings = zoomTrack?.getSettings?.() || {};
+      const nativeRange = capabilities.zoom;
+
+      if (nativeRange && Number.isFinite(nativeRange.min) && Number.isFinite(nativeRange.max) && nativeRange.max > nativeRange.min) {
+        zoomMode = 'native';
+        zoomMin = nativeRange.min;
+        zoomMax = nativeRange.max;
+        zoomValue = clamp(Number.isFinite(settings.zoom) ? settings.zoom : zoomMin, zoomMin, zoomMax);
+        video.style.transform = 'scaleX(-1)';
+      } else {
+        zoomMode = 'digital';
+        zoomMin = 1;
+        zoomMax = 4;
+        zoomValue = 1;
+        applyDigitalZoom();
+      }
+      updateZoomBadge();
+    }
+
+    function updateZoomBadge() {
+      zoomBadge.textContent = `${zoomValue.toFixed(1)}×`;
+      zoomBadge.hidden = false;
+    }
+
+    function applyDigitalZoom() {
+      video.style.transform = `scaleX(-1) scale(${zoomValue})`;
+    }
+
+    function queueNativeZoom(value) {
+      pendingNativeZoom = value;
+      if (nativeZoomFrame) return;
+      nativeZoomFrame = requestAnimationFrame(() => {
+        nativeZoomFrame = 0;
+        const track = zoomTrack;
+        if (!track) return;
+        track.applyConstraints({ advanced: [{ zoom: pendingNativeZoom }] }).catch(error => {
+          console.warn('Native camera zoom failed; using digital zoom instead.', error);
+          zoomMode = 'digital';
+          zoomMin = 1;
+          zoomMax = 4;
+          zoomValue = clamp(zoomValue, zoomMin, zoomMax);
+          applyDigitalZoom();
+          updateZoomBadge();
+        });
+      });
+    }
+
+    function setZoom(value) {
+      zoomValue = clamp(value, zoomMin, zoomMax);
+      if (zoomMode === 'native') queueNativeZoom(zoomValue);
+      else applyDigitalZoom();
+      updateZoomBadge();
+    }
+
+    function resetZoom() { setZoom(zoomMin); }
+
+    function pointerDistance() {
+      const points = Array.from(zoomPointers.values());
+      if (points.length < 2) return 0;
+      return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    }
+
+    function beginPinchIfReady() {
+      if (zoomPointers.size === 2) {
+        pinchStartDistance = pointerDistance();
+        pinchStartZoom = zoomValue;
+      }
+    }
+
+    video.addEventListener('pointerdown', event => {
+      video.setPointerCapture?.(event.pointerId);
+      zoomPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      beginPinchIfReady();
+    });
+
+    video.addEventListener('pointermove', event => {
+      if (!zoomPointers.has(event.pointerId)) return;
+      zoomPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (zoomPointers.size === 2 && pinchStartDistance > 0) {
+        event.preventDefault();
+        const ratio = pointerDistance() / pinchStartDistance;
+        setZoom(pinchStartZoom * ratio);
+      }
+    });
+
+    function releaseZoomPointer(event) {
+      zoomPointers.delete(event.pointerId);
+      pinchStartDistance = 0;
+      pinchStartZoom = zoomValue;
+      beginPinchIfReady();
+    }
+
+    video.addEventListener('pointerup', releaseZoomPointer);
+    video.addEventListener('pointercancel', releaseZoomPointer);
+    zoomBadge.addEventListener('click', resetZoom);
+
     async function startCamera(deviceId = '') {
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus('Camera not supported');
@@ -126,54 +290,80 @@
         video.srcObject = stream;
         await video.play();
         activeDeviceId = stream.getVideoTracks()[0]?.getSettings().deviceId || deviceId;
+        setupZoom();
         await refreshDevices();
         showLive();
-        setStatus('Ready');
+        setStatus('Ready — pinch to zoom');
       } catch (error) {
         console.error(error);
         setStatus(error.name === 'NotAllowedError' ? 'Camera permission needed' : 'Could not open camera');
       }
     }
 
+    function exitCropMode() {
+      cropLayer.hidden = true;
+      cropActions.hidden = true;
+      cropBtn.hidden = !lastImageDataUrl || preview.hidden;
+      cropDrag = null;
+    }
+
     function showLive() {
+      exitCropMode();
       preview.hidden = true;
       video.hidden = false;
       liveBtn.hidden = true;
+      cropBtn.hidden = true;
+      zoomBadge.hidden = false;
     }
 
     function showPreview(dataUrl) {
+      exitCropMode();
+      lastImageDataUrl = dataUrl;
       preview.src = dataUrl;
       preview.hidden = false;
       video.hidden = true;
       liveBtn.hidden = false;
+      cropBtn.hidden = false;
+      zoomBadge.hidden = true;
     }
 
     function drawMirrored(source, width, height) {
       canvas.width = width;
       canvas.height = height;
+      let sx = 0;
+      let sy = 0;
+      let sw = width;
+      let sh = height;
+
+      if (zoomMode === 'digital' && zoomValue > 1) {
+        sw = width / zoomValue;
+        sh = height / zoomValue;
+        sx = (width - sw) / 2;
+        sy = (height - sh) / 2;
+      }
+
       ctx.save();
       ctx.setTransform(-1, 0, 0, 1, width, 0);
-      ctx.drawImage(source, 0, 0, width, height);
+      ctx.drawImage(source, sx, sy, sw, sh, 0, 0, width, height);
       ctx.restore();
     }
 
-    function filename() {
+    function filename(prefix = 'slide') {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      return `slide-${stamp}.jpg`;
+      return `${prefix}-${stamp}.jpg`;
     }
 
-    async function saveCanvas() {
+    async function saveCanvas(prefix = 'slide') {
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
       if (!blob) throw new Error('Image export failed');
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename();
+      link.download = filename(prefix);
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
-      return url;
     }
 
     captureBtn.addEventListener('click', async () => {
@@ -184,10 +374,10 @@
       captureBtn.disabled = true;
       try {
         drawMirrored(video, video.videoWidth, video.videoHeight);
-        const previewUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const previewUrl = canvas.toDataURL('image/jpeg', 0.92);
         showPreview(previewUrl);
         await saveCanvas();
-        setStatus('Saved ✓');
+        setStatus('Saved ✓ — crop if needed');
       } catch (error) {
         console.error(error);
         setStatus('Save failed');
@@ -195,6 +385,114 @@
         captureBtn.disabled = false;
       }
     });
+
+    function positionCropLayer() {
+      const stageRect = stage.getBoundingClientRect();
+      const previewRect = preview.getBoundingClientRect();
+      cropLayer.style.left = `${previewRect.left - stageRect.left}px`;
+      cropLayer.style.top = `${previewRect.top - stageRect.top}px`;
+      cropLayer.style.width = `${previewRect.width}px`;
+      cropLayer.style.height = `${previewRect.height}px`;
+      renderCropBox();
+    }
+
+    function renderCropBox() {
+      cropBox.style.left = `${crop.x * 100}%`;
+      cropBox.style.top = `${crop.y * 100}%`;
+      cropBox.style.width = `${crop.w * 100}%`;
+      cropBox.style.height = `${crop.h * 100}%`;
+    }
+
+    function enterCropMode() {
+      if (!lastImageDataUrl || preview.hidden) return;
+      crop = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+      cropBtn.hidden = true;
+      cropActions.hidden = false;
+      cropLayer.hidden = false;
+      requestAnimationFrame(positionCropLayer);
+      setStatus('Drag box or corners to crop');
+    }
+
+    cropBox.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      cropBox.setPointerCapture?.(event.pointerId);
+      const handle = event.target.closest('[data-handle]')?.dataset.handle || 'move';
+      cropDrag = {
+        pointerId: event.pointerId,
+        handle,
+        startX: event.clientX,
+        startY: event.clientY,
+        start: { ...crop }
+      };
+    });
+
+    cropBox.addEventListener('pointermove', event => {
+      if (!cropDrag || cropDrag.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      const rect = cropLayer.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const dx = (event.clientX - cropDrag.startX) / rect.width;
+      const dy = (event.clientY - cropDrag.startY) / rect.height;
+      const start = cropDrag.start;
+      const minSize = 0.08;
+
+      if (cropDrag.handle === 'move') {
+        crop.x = clamp(start.x + dx, 0, 1 - start.w);
+        crop.y = clamp(start.y + dy, 0, 1 - start.h);
+      } else {
+        let left = start.x;
+        let top = start.y;
+        let right = start.x + start.w;
+        let bottom = start.y + start.h;
+
+        if (cropDrag.handle.includes('w')) left = clamp(start.x + dx, 0, right - minSize);
+        if (cropDrag.handle.includes('e')) right = clamp(start.x + start.w + dx, left + minSize, 1);
+        if (cropDrag.handle.includes('n')) top = clamp(start.y + dy, 0, bottom - minSize);
+        if (cropDrag.handle.includes('s')) bottom = clamp(start.y + start.h + dy, top + minSize, 1);
+
+        crop = { x: left, y: top, w: right - left, h: bottom - top };
+      }
+      renderCropBox();
+    });
+
+    function endCropDrag(event) {
+      if (cropDrag?.pointerId === event.pointerId) cropDrag = null;
+    }
+
+    cropBox.addEventListener('pointerup', endCropDrag);
+    cropBox.addEventListener('pointercancel', endCropDrag);
+
+    async function applyCrop() {
+      if (!lastImageDataUrl) return;
+      applyCropBtn.disabled = true;
+      try {
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          image.src = lastImageDataUrl;
+        });
+
+        const sx = Math.round(crop.x * image.naturalWidth);
+        const sy = Math.round(crop.y * image.naturalHeight);
+        const sw = Math.max(1, Math.round(crop.w * image.naturalWidth));
+        const sh = Math.max(1, Math.round(crop.h * image.naturalHeight));
+        canvas.width = sw;
+        canvas.height = sh;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        const croppedUrl = canvas.toDataURL('image/jpeg', 0.92);
+        showPreview(croppedUrl);
+        await saveCanvas('slide-cropped');
+        setStatus('Cropped copy saved ✓');
+      } catch (error) {
+        console.error(error);
+        setStatus('Crop failed');
+      } finally {
+        applyCropBtn.disabled = false;
+      }
+    }
 
     cameraToggle.addEventListener('click', async () => {
       if (devices.length < 2) return;
@@ -205,6 +503,15 @@
 
     cameraSelect.addEventListener('change', () => startCamera(cameraSelect.value));
     liveBtn.addEventListener('click', showLive);
+    cropBtn.addEventListener('click', enterCropMode);
+    cancelCropBtn.addEventListener('click', () => {
+      exitCropMode();
+      setStatus('Crop cancelled');
+    });
+    applyCropBtn.addEventListener('click', applyCrop);
+    window.addEventListener('resize', () => {
+      if (!cropLayer.hidden) positionCropLayer();
+    });
 
     fileInput.addEventListener('change', () => {
       const file = fileInput.files?.[0];
@@ -213,10 +520,17 @@
       const objectUrl = URL.createObjectURL(file);
       img.onload = async () => {
         try {
+          const savedZoomMode = zoomMode;
+          const savedZoom = zoomValue;
+          zoomMode = 'digital';
+          zoomValue = 1;
           drawMirrored(img, img.naturalWidth, img.naturalHeight);
-          showPreview(canvas.toDataURL('image/jpeg', 0.9));
-          await saveCanvas();
-          setStatus('Corrected photo saved ✓');
+          zoomMode = savedZoomMode;
+          zoomValue = savedZoom;
+          const correctedUrl = canvas.toDataURL('image/jpeg', 0.92);
+          showPreview(correctedUrl);
+          await saveCanvas('corrected-slide');
+          setStatus('Corrected photo saved ✓ — crop if needed');
         } catch (error) {
           console.error(error);
           setStatus('Could not fix photo');
@@ -224,6 +538,11 @@
           URL.revokeObjectURL(objectUrl);
           fileInput.value = '';
         }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        fileInput.value = '';
+        setStatus('Could not open photo');
       };
       img.src = objectUrl;
     });
